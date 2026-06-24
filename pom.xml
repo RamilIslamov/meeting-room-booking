@@ -59,6 +59,13 @@
 			<artifactId>spring-boot-starter-liquibase</artifactId>
 		</dependency>
 
+		<!-- OpenAPI / Swagger UI. springdoc 3.0.x targets Spring Boot 4 / Spring 7. -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>3.0.3</version>
+		</dependency>
+
 		<!-- JWT (JJWT) — version not managed by Spring Boot BOM, pin explicitly -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
