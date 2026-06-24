@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: meeting-room-booking-backend
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/booking}
+    username: ${SPRING_DATASOURCE_USERNAME:booking}
+    password: ${SPRING_DATASOURCE_PASSWORD:booking}
+
+  jpa:
+    # Schema is owned by Liquibase, not Hibernate. Never let ddl-auto create/update tables.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: 8080
+
+# Forward-looking config for JWT auth (step 4). Override the secret via env in real deployments.
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-please-32bytes-minimum-0123456789}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
