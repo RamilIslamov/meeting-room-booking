@@ -1,5 +1,7 @@
 # Meeting Room Booking — Backend
 
+[![CI](https://github.com/RamilIslamov/meeting-room-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/RamilIslamov/meeting-room-booking/actions/workflows/ci.yml)
+
 REST API for booking meeting rooms. Users browse rooms and reserve time slots;
 administrators manage rooms. Bookings are validated against business rules,
 including time‑overlap conflict detection. Built as a portfolio project on a
@@ -36,14 +38,21 @@ current Spring Boot 4 / Java 21 stack.
 
 ## Running locally
 
-Prerequisites: **JDK 21**, **Docker**.
+Prerequisites: **Docker** (and **JDK 21** for the local‑dev option).
+
+### Option A — full stack with Docker Compose (app + db)
 
 ```bash
-# 1. Start PostgreSQL
-docker compose up -d
+docker compose up -d --build      # builds the app image and starts app + PostgreSQL
+```
 
-# 2. Run the application (http://localhost:8080)
-./mvnw spring-boot:run
+The API comes up at http://localhost:8080 once PostgreSQL is healthy.
+
+### Option B — app from source, PostgreSQL in Docker
+
+```bash
+docker compose up -d postgres     # just the database
+./mvnw spring-boot:run            # app on http://localhost:8080
 ```
 
 A default admin user is seeded on first startup:
@@ -160,5 +169,5 @@ booking when `existing.start_time < new.end_time AND existing.end_time > new.sta
 - Search & filters (capacity, location, free rooms for a time range)
 - Booking rules (working hours, max duration, booking horizon), recurring bookings
 - Email notifications, calendar integration, WebSocket live updates
-- Application Docker image + full `docker-compose` (app + db) and CI/CD
+- Publish the Docker image to a registry and add a deployment pipeline
 ```

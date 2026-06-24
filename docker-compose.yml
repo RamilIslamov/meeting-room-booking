@@ -16,5 +16,22 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    container_name: booking-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/booking
+      SPRING_DATASOURCE_USERNAME: booking
+      SPRING_DATASOURCE_PASSWORD: booking
+      # Override these in any real deployment:
+      JWT_SECRET: dev-only-secret-change-me-please-32bytes-minimum-0123456789
+      ADMIN_EMAIL: admin@booking.local
+      ADMIN_PASSWORD: admin12345
+    ports:
+      - "8080:8080"
+
 volumes:
   booking-pgdata:
