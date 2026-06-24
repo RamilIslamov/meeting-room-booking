@@ -109,7 +109,7 @@ class BookingServiceTest {
         when(bookingRepository.existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
                 anyLong(), any(), any(), any())).thenReturn(false);
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(owner()));
-        when(bookingRepository.save(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
+        when(bookingRepository.saveAndFlush(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
 
         BookingResponse response = bookingService.create(request(start, start.plusHours(1)), EMAIL);
 

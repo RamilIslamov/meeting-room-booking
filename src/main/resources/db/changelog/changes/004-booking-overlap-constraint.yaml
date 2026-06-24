@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-booking-overlap-constraint
+      author: ramil
+      comment: >
+        Database-level guard against double-booking. An exclusion constraint
+        forbids two ACTIVE bookings in the same room whose [start, end) ranges
+        overlap, closing the check-then-insert race the application cannot.
+      changes:
+        - sql:
+            sql: |
+              CREATE EXTENSION IF NOT EXISTS btree_gist;
+              ALTER TABLE bookings
+                ADD CONSTRAINT no_overlapping_active_bookings
+                EXCLUDE USING gist (
+                  room_id WITH =,
+                  tsrange(start_time, end_time) WITH &&
+                ) WHERE (status = 'ACTIVE');
+      rollback:
+        - sql:
+            sql: |
+              ALTER TABLE bookings DROP CONSTRAINT no_overlapping_active_bookings;

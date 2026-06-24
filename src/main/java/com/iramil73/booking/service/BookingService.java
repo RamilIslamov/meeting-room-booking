@@ -13,6 +13,7 @@ import com.iramil73.booking.repository.BookingRepository;
 import com.iramil73.booking.repository.RoomRepository;
 import com.iramil73.booking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,7 @@ public class BookingService {
             throw new BadRequestException("Room is not active: " + room.getId());
         }
 
+        // Fast path: friendly 409 in the common (non-concurrent) case.
         boolean overlaps = bookingRepository
                 .existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
                         room.getId(), BookingStatus.ACTIVE, request.endTime(), request.startTime());
@@ -61,7 +63,14 @@ public class BookingService {
                 .endTime(request.endTime())
                 .status(BookingStatus.ACTIVE)
                 .build();
-        return BookingResponse.from(bookingRepository.save(booking));
+        try {
+            // saveAndFlush surfaces the exclusion-constraint violation here (not at
+            // commit), so a concurrent double-booking that slips past the check above
+            // is still rejected by the database and reported as 409.
+            return BookingResponse.from(bookingRepository.saveAndFlush(booking));
+        } catch (DataIntegrityViolationException ex) {
+            throw new ConflictException("Time slot already booked for this room");
+        }
     }
 
     @Transactional(readOnly = true)
