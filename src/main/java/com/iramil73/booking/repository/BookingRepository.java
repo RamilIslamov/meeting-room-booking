@@ -20,6 +20,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     boolean existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
             Long roomId, BookingStatus status, LocalDateTime newEnd, LocalDateTime newStart);
 
+    /** Same overlap test, excluding one booking (used when editing it). */
+    boolean existsByRoomIdAndStatusAndIdNotAndStartTimeLessThanAndEndTimeGreaterThan(
+            Long roomId, BookingStatus status, Long id, LocalDateTime newEnd, LocalDateTime newStart);
+
     List<Booking> findByUserIdOrderByStartTimeDesc(Long userId);
 
     @Query("""

@@ -3,6 +3,7 @@ package com.iramil73.booking.service;
 import com.iramil73.booking.config.BookingProperties;
 import com.iramil73.booking.dto.BookingRequest;
 import com.iramil73.booking.dto.BookingResponse;
+import com.iramil73.booking.dto.BookingUpdateRequest;
 import com.iramil73.booking.entity.Booking;
 import com.iramil73.booking.entity.BookingStatus;
 import com.iramil73.booking.entity.Role;
@@ -244,6 +245,56 @@ class BookingServiceTest {
         bookingService.cancel(5L, "admin@booking.local", true);
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+    }
+
+    @Test
+    void update_chargesDifferenceWhenExtended() {
+        User user = owner("90.00");
+        Booking booking = Booking.builder()
+                .id(5L).room(activeRoom()).user(user).status(BookingStatus.ACTIVE)
+                .startTime(START).endTime(END).cost(new BigDecimal("10.00")).build();
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.existsByRoomIdAndStatusAndIdNotAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyLong(), any(), anyLong(), any(), any())).thenReturn(false);
+        when(userRepository.findByEmailForUpdate(EMAIL)).thenReturn(Optional.of(user));
+        when(bookingRepository.saveAndFlush(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
+
+        BookingResponse response = bookingService.update(
+                5L, new BookingUpdateRequest("Longer", START, START.plusHours(2)), EMAIL, false);
+
+        assertThat(response.cost()).isEqualByComparingTo("20.00"); // 2h * 10
+        assertThat(user.getBalance()).isEqualByComparingTo("80.00"); // 90 - extra 10
+    }
+
+    @Test
+    void update_rejectsCancelledBooking() {
+        Booking booking = activeBooking();
+        booking.setStatus(BookingStatus.CANCELLED);
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        assertThatThrownBy(() -> bookingService.update(
+                5L, new BookingUpdateRequest("x", START, END), EMAIL, false))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void update_rejectsNonOwner() {
+        Booking booking = activeBooking();
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        assertThatThrownBy(() -> bookingService.update(
+                5L, new BookingUpdateRequest("x", START, END), "intruder@example.com", false))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    @Test
+    void update_rejectsOverlap() {
+        Booking booking = activeBooking();
+        booking.setUser(owner("100.00"));
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.existsByRoomIdAndStatusAndIdNotAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyLong(), any(), anyLong(), any(), any())).thenReturn(true);
+        assertThatThrownBy(() -> bookingService.update(
+                5L, new BookingUpdateRequest("x", START, END), EMAIL, false))
+                .isInstanceOf(ConflictException.class);
     }
 
     private Booking activeBooking() {

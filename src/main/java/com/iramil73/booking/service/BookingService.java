@@ -3,6 +3,8 @@ package com.iramil73.booking.service;
 import com.iramil73.booking.config.BookingProperties;
 import com.iramil73.booking.dto.BookingRequest;
 import com.iramil73.booking.dto.BookingResponse;
+import com.iramil73.booking.dto.BookingUpdateRequest;
+import com.iramil73.booking.entity.Role;
 import com.iramil73.booking.entity.Booking;
 import com.iramil73.booking.entity.BookingStatus;
 import com.iramil73.booking.entity.Room;
@@ -38,7 +40,7 @@ public class BookingService {
 
     @Transactional
     public BookingResponse create(BookingRequest request, String userEmail, boolean isAdmin) {
-        validateTimes(request, isAdmin);
+        validateTimes(request.startTime(), request.endTime(), isAdmin);
 
         Room room = roomRepository.findById(request.roomId())
                 .orElseThrow(() -> new NotFoundException("Room not found: " + request.roomId()));
@@ -120,6 +122,56 @@ public class BookingService {
         booking.setCancelledAt(Instant.now());
     }
 
+    @Transactional
+    public BookingResponse update(Long bookingId, BookingUpdateRequest request, String userEmail, boolean isAdmin) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new ConflictException("Cannot edit a cancelled booking");
+        }
+        User owner = booking.getUser();
+        if (!isAdmin && !owner.getEmail().equals(userEmail)) {
+            throw new AccessDeniedException("Cannot edit another user's booking");
+        }
+        if (!isAdmin && !booking.getStartTime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Cannot edit a booking that has already started");
+        }
+
+        validateTimes(request.startTime(), request.endTime(), isAdmin);
+
+        Room room = booking.getRoom();
+        boolean overlaps = bookingRepository
+                .existsByRoomIdAndStatusAndIdNotAndStartTimeLessThanAndEndTimeGreaterThan(
+                        room.getId(), BookingStatus.ACTIVE, booking.getId(), request.endTime(), request.startTime());
+        if (overlaps) {
+            throw new ConflictException("Time slot already booked for this room");
+        }
+
+        // Pricing follows the booking owner's role; adjust their balance by the difference.
+        boolean ownerIsAdmin = owner.getRole() == Role.ADMIN;
+        BigDecimal newCost = ownerIsAdmin ? zero() : computeCost(room, request.startTime(), request.endTime());
+        BigDecimal diff = newCost.subtract(booking.getCost());
+        if (!ownerIsAdmin && diff.signum() != 0) {
+            User lockedOwner = userRepository.findByEmailForUpdate(owner.getEmail())
+                    .orElseThrow(() -> new NotFoundException("User not found: " + owner.getEmail()));
+            if (diff.signum() > 0 && lockedOwner.getBalance().compareTo(diff) < 0) {
+                throw new BadRequestException("Insufficient balance: edit needs an extra "
+                        + diff + " but balance is " + lockedOwner.getBalance());
+            }
+            lockedOwner.setBalance(lockedOwner.getBalance().subtract(diff));
+        }
+
+        booking.setTitle(request.title());
+        booking.setStartTime(request.startTime());
+        booking.setEndTime(request.endTime());
+        booking.setCost(newCost);
+        try {
+            return BookingResponse.from(bookingRepository.saveAndFlush(booking));
+        } catch (DataIntegrityViolationException ex) {
+            throw new ConflictException("Time slot already booked for this room");
+        }
+    }
+
     /**
      * Loads the booking user and, for non-admins, atomically checks and deducts the
      * cost from their (row-locked) balance.
@@ -144,10 +196,7 @@ public class BookingService {
         return room.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private void validateTimes(BookingRequest request, boolean isAdmin) {
-        LocalDateTime start = request.startTime();
-        LocalDateTime end = request.endTime();
-
+    private void validateTimes(LocalDateTime start, LocalDateTime end, boolean isAdmin) {
         if (!start.isBefore(end)) {
             throw new BadRequestException("startTime must be before endTime");
         }

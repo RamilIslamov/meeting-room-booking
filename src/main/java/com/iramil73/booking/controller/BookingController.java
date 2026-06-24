@@ -2,6 +2,7 @@ package com.iramil73.booking.controller;
 
 import com.iramil73.booking.dto.BookingRequest;
 import com.iramil73.booking.dto.BookingResponse;
+import com.iramil73.booking.dto.BookingUpdateRequest;
 import com.iramil73.booking.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -45,6 +47,13 @@ public class BookingController {
             @RequestParam Long roomId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return bookingService.listByRoomAndDate(roomId, date);
+    }
+
+    @PutMapping("/{id}")
+    public BookingResponse update(@PathVariable Long id,
+                                  @Valid @RequestBody BookingUpdateRequest request,
+                                  Authentication authentication) {
+        return bookingService.update(id, request, authentication.getName(), isAdmin(authentication));
     }
 
     @DeleteMapping("/{id}")
