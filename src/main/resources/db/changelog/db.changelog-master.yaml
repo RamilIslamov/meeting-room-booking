@@ -1,5 +1,6 @@
-# Master changelog. Table migrations (users, rooms, bookings) are added in step 3.
-# Each new changeset goes into db/changelog/changes/ and is referenced here, e.g.:
-#   - include:
-#       file: db/changelog/changes/001-create-users.yaml
-databaseChangeLog: []
+# Master changelog. Each new changeset goes into db/changelog/changes/
+# and is referenced here in order.
+databaseChangeLog:
+  - include:
+      file: changes/001-create-users.yaml
+      relativeToChangelogFile: true

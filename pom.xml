@@ -52,9 +52,11 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- Boot 4 split autoconfig into modules: liquibase-core alone does NOT
+		     trigger Spring Boot's Liquibase autoconfiguration. Use the starter. -->
 		<dependency>
-			<groupId>org.liquibase</groupId>
-			<artifactId>liquibase-core</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-liquibase</artifactId>
 		</dependency>
 
 		<!-- JWT (JJWT) — version not managed by Spring Boot BOM, pin explicitly -->
