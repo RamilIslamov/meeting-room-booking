@@ -13,3 +13,12 @@ databaseChangeLog:
   - include:
       file: changes/004-booking-overlap-constraint.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/005-add-room-price.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/006-add-user-balance.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/007-add-booking-cost.yaml
+      relativeToChangelogFile: true

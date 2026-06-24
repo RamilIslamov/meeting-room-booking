@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -47,16 +48,13 @@ class BookingServiceTest {
     private BookingService bookingService;
 
     private static final String EMAIL = "owner@example.com";
-    // Tomorrow 10:00–11:00: deterministic, inside default working hours, single day.
     private static final LocalDateTime START = LocalDate.now().plusDays(1).atTime(10, 0);
     private static final LocalDateTime END = START.plusHours(1);
 
-    // Permissive rules so the core-logic tests aren't constrained by business hours.
     private static BookingProperties permissive() {
         return new BookingProperties(LocalTime.MIN, LocalTime.MAX, 24, 3650);
     }
 
-    // Production-like rules for the business-rule tests.
     private static BookingProperties strict() {
         return new BookingProperties(LocalTime.of(8, 0), LocalTime.of(20, 0), 4, 30);
     }
@@ -67,11 +65,13 @@ class BookingServiceTest {
     }
 
     private Room activeRoom() {
-        return Room.builder().id(1L).name("Room A").capacity(4).active(true).build();
+        return Room.builder().id(1L).name("Room A").capacity(4)
+                .pricePerHour(new BigDecimal("10.00")).active(true).build();
     }
 
-    private User owner() {
-        return User.builder().id(7L).email(EMAIL).fullName("Owner").role(Role.USER).build();
+    private User owner(String balance) {
+        return User.builder().id(7L).email(EMAIL).fullName("Owner").role(Role.USER)
+                .balance(new BigDecimal(balance)).build();
     }
 
     private BookingRequest request(LocalDateTime start, LocalDateTime end) {
@@ -80,7 +80,7 @@ class BookingServiceTest {
 
     @Test
     void create_rejectsWhenStartNotBeforeEnd() {
-        assertThatThrownBy(() -> bookingService.create(request(START, START), EMAIL))
+        assertThatThrownBy(() -> bookingService.create(request(START, START), EMAIL, false))
                 .isInstanceOf(BadRequestException.class);
         verify(bookingRepository, never()).saveAndFlush(any());
     }
@@ -88,14 +88,14 @@ class BookingServiceTest {
     @Test
     void create_rejectsBookingInThePast() {
         LocalDateTime start = LocalDateTime.now().minusHours(1);
-        assertThatThrownBy(() -> bookingService.create(request(start, start.plusHours(1)), EMAIL))
+        assertThatThrownBy(() -> bookingService.create(request(start, start.plusHours(1)), EMAIL, false))
                 .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void create_rejectsWhenRoomMissing() {
         when(roomRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL))
+        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL, false))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -104,7 +104,7 @@ class BookingServiceTest {
         Room room = activeRoom();
         room.setActive(false);
         when(roomRepository.findById(1L)).thenReturn(Optional.of(room));
-        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL))
+        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL, false))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -113,34 +113,59 @@ class BookingServiceTest {
         when(roomRepository.findById(1L)).thenReturn(Optional.of(activeRoom()));
         when(bookingRepository.existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
                 eq(1L), eq(BookingStatus.ACTIVE), any(), any())).thenReturn(true);
-        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL))
+        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL, false))
                 .isInstanceOf(ConflictException.class);
         verify(bookingRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    void create_savesActiveBookingWhenValid() {
+    void create_rejectsWhenInsufficientBalance() {
+        when(roomRepository.findById(1L)).thenReturn(Optional.of(activeRoom())); // 10.00 / hour, 1h => 10.00
+        when(bookingRepository.existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyLong(), any(), any(), any())).thenReturn(false);
+        when(userRepository.findByEmailForUpdate(EMAIL)).thenReturn(Optional.of(owner("5.00")));
+        assertThatThrownBy(() -> bookingService.create(request(START, END), EMAIL, false))
+                .isInstanceOf(BadRequestException.class);
+        verify(bookingRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void create_chargesBalanceAndSavesWhenValid() {
         when(roomRepository.findById(1L)).thenReturn(Optional.of(activeRoom()));
         when(bookingRepository.existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
                 anyLong(), any(), any(), any())).thenReturn(false);
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(owner()));
+        User user = owner("100.00");
+        when(userRepository.findByEmailForUpdate(EMAIL)).thenReturn(Optional.of(user));
         when(bookingRepository.saveAndFlush(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
 
-        BookingResponse response = bookingService.create(request(START, END), EMAIL);
+        BookingResponse response = bookingService.create(request(START, END), EMAIL, false);
 
         assertThat(response.status()).isEqualTo("ACTIVE");
-        assertThat(response.roomId()).isEqualTo(1L);
-        assertThat(response.userEmail()).isEqualTo(EMAIL);
+        assertThat(response.cost()).isEqualByComparingTo("10.00");
+        assertThat(user.getBalance()).isEqualByComparingTo("90.00"); // 100 - 10
     }
 
-    // --- business rules (strict properties; all reject before any repository access) ---
+    @Test
+    void create_adminBooksForFreeIgnoringBalance() {
+        when(roomRepository.findById(1L)).thenReturn(Optional.of(activeRoom()));
+        when(bookingRepository.existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyLong(), any(), any(), any())).thenReturn(false);
+        User admin = owner("0.00");
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(admin));
+        when(bookingRepository.saveAndFlush(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
+
+        BookingResponse response = bookingService.create(request(START, END), EMAIL, true);
+
+        assertThat(response.cost()).isEqualByComparingTo("0.00");
+        assertThat(admin.getBalance()).isEqualByComparingTo("0.00"); // untouched
+    }
 
     @Test
     void create_rejectsBookingExceedingMaxDuration() {
         BookingService strictService =
                 new BookingService(bookingRepository, roomRepository, userRepository, strict());
         LocalDateTime start = LocalDate.now().plusDays(1).atTime(10, 0);
-        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(6)), EMAIL))
+        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(6)), EMAIL, false))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -149,7 +174,7 @@ class BookingServiceTest {
         BookingService strictService =
                 new BookingService(bookingRepository, roomRepository, userRepository, strict());
         LocalDateTime start = LocalDate.now().plusDays(1).atTime(7, 0);
-        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(1)), EMAIL))
+        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(1)), EMAIL, false))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -158,23 +183,29 @@ class BookingServiceTest {
         BookingService strictService =
                 new BookingService(bookingRepository, roomRepository, userRepository, strict());
         LocalDateTime start = LocalDate.now().plusDays(40).atTime(10, 0);
-        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(1)), EMAIL))
+        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(1)), EMAIL, false))
                 .isInstanceOf(BadRequestException.class);
     }
 
     @Test
-    void create_rejectsBookingSpanningTwoDays() {
+    void create_allowsAdminToBackdate() {
+        // Past start would be rejected for a user, but an admin may backdate.
         BookingService strictService =
                 new BookingService(bookingRepository, roomRepository, userRepository, strict());
-        LocalDateTime start = LocalDate.now().plusDays(1).atTime(19, 0);
-        assertThatThrownBy(() -> strictService.create(request(start, start.plusHours(3)), EMAIL))
-                .isInstanceOf(BadRequestException.class);
+        LocalDateTime start = LocalDateTime.now().minusDays(1).withHour(10).withMinute(0);
+        when(roomRepository.findById(1L)).thenReturn(Optional.of(activeRoom()));
+        when(bookingRepository.existsByRoomIdAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyLong(), any(), any(), any())).thenReturn(false);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(owner("0.00")));
+        when(bookingRepository.saveAndFlush(any(Booking.class))).thenAnswer(i -> i.getArgument(0));
+
+        BookingResponse response = strictService.create(request(start, start.plusHours(1)), EMAIL, true);
+        assertThat(response.status()).isEqualTo("ACTIVE");
     }
 
     @Test
     void cancel_rejectsNonOwnerNonAdmin() {
-        Booking booking = Booking.builder()
-                .id(5L).room(activeRoom()).user(owner()).status(BookingStatus.ACTIVE).build();
+        Booking booking = activeBooking();
         when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
         assertThatThrownBy(() -> bookingService.cancel(5L, "intruder@example.com", false))
                 .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
@@ -183,33 +214,41 @@ class BookingServiceTest {
 
     @Test
     void cancel_rejectsAlreadyCancelled() {
-        Booking booking = Booking.builder()
-                .id(5L).room(activeRoom()).user(owner()).status(BookingStatus.CANCELLED).build();
+        Booking booking = activeBooking();
+        booking.setStatus(BookingStatus.CANCELLED);
         when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
         assertThatThrownBy(() -> bookingService.cancel(5L, EMAIL, false))
                 .isInstanceOf(ConflictException.class);
     }
 
     @Test
-    void cancel_succeedsForOwner() {
+    void cancel_refundsOwnerForFutureBooking() {
+        User user = owner("90.00");
         Booking booking = Booking.builder()
-                .id(5L).room(activeRoom()).user(owner()).status(BookingStatus.ACTIVE).build();
+                .id(5L).room(activeRoom()).user(user).status(BookingStatus.ACTIVE)
+                .startTime(START).endTime(END).cost(new BigDecimal("10.00")).build();
         when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
 
         bookingService.cancel(5L, EMAIL, false);
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
         assertThat(booking.getCancelledAt()).isNotNull();
+        assertThat(user.getBalance()).isEqualByComparingTo("100.00"); // 90 + 10 refund
     }
 
     @Test
     void cancel_succeedsForAdminOnOthersBooking() {
-        Booking booking = Booking.builder()
-                .id(5L).room(activeRoom()).user(owner()).status(BookingStatus.ACTIVE).build();
+        Booking booking = activeBooking();
         when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
 
         bookingService.cancel(5L, "admin@booking.local", true);
 
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+    }
+
+    private Booking activeBooking() {
+        return Booking.builder()
+                .id(5L).room(activeRoom()).user(owner("100.00")).status(BookingStatus.ACTIVE)
+                .startTime(START).endTime(END).cost(BigDecimal.ZERO).build();
     }
 }

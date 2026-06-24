@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,7 +35,7 @@ class BookingOverlapConstraintIntegrationTest extends AbstractPostgresIntegratio
     @Test
     void databaseRejectsOverlappingActiveBookingsInSameRoom() {
         Room room = roomRepository.saveAndFlush(
-                Room.builder().name("Constraint Room").capacity(4).active(true).build());
+                Room.builder().name("Constraint Room").capacity(4).pricePerHour(BigDecimal.ZERO).active(true).build());
         User user = persistUser("constraint.user@example.com");
 
         bookingRepository.saveAndFlush(
@@ -49,7 +50,7 @@ class BookingOverlapConstraintIntegrationTest extends AbstractPostgresIntegratio
     @Test
     void cancelledBookingDoesNotBlockTheSlot() {
         Room room = roomRepository.saveAndFlush(
-                Room.builder().name("Constraint Room 2").capacity(4).active(true).build());
+                Room.builder().name("Constraint Room 2").capacity(4).pricePerHour(BigDecimal.ZERO).active(true).build());
         User user = persistUser("constraint.user2@example.com");
 
         bookingRepository.saveAndFlush(
@@ -62,13 +63,15 @@ class BookingOverlapConstraintIntegrationTest extends AbstractPostgresIntegratio
 
     private User persistUser(String email) {
         return userRepository.saveAndFlush(User.builder()
-                .email(email).passwordHash("x").fullName("Constraint User").role(Role.USER).build());
+                .email(email).passwordHash("x").fullName("Constraint User").role(Role.USER)
+                .balance(BigDecimal.ZERO).build());
     }
 
     private Booking booking(Room room, User user, BookingStatus status, String start, String end) {
         return Booking.builder()
                 .room(room).user(user).title("slot").status(status)
                 .startTime(LocalDateTime.parse(start)).endTime(LocalDateTime.parse(end))
+                .cost(BigDecimal.ZERO)
                 .build();
     }
 }

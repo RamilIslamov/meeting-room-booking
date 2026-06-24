@@ -1,5 +1,6 @@
 package com.iramil73.booking.service;
 
+import com.iramil73.booking.config.UserProperties;
 import com.iramil73.booking.dto.AuthResponse;
 import com.iramil73.booking.dto.LoginRequest;
 import com.iramil73.booking.dto.RegisterRequest;
@@ -22,6 +23,7 @@ public class AuthService {
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final UserProperties userProperties;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -34,6 +36,7 @@ public class AuthService {
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName())
                 .role(Role.USER)
+                .balance(userProperties.startingBalance())
                 .build();
         userRepository.save(user);
 

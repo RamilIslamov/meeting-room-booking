@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-room-price
+      author: ramil
+      comment: Price per hour for a room (credits). Existing rooms default to 0 (free).
+      changes:
+        - addColumn:
+            tableName: rooms
+            columns:
+              - column:
+                  name: price_per_hour
+                  type: numeric(10, 2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false

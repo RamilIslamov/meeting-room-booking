@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-add-user-balance
+      author: ramil
+      comment: User wallet balance (credits). Existing users seeded with 100.
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: balance
+                  type: numeric(12, 2)
+                  defaultValueNumeric: 100
+                  constraints:
+                    nullable: false

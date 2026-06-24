@@ -24,6 +24,7 @@ public class AdminSeeder implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminProperties adminProperties;
+    private final UserProperties userProperties;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -35,6 +36,7 @@ public class AdminSeeder implements ApplicationRunner {
                 .passwordHash(passwordEncoder.encode(adminProperties.password()))
                 .fullName("Administrator")
                 .role(Role.ADMIN)
+                .balance(userProperties.startingBalance())
                 .build();
         userRepository.save(admin);
         log.warn("Seeded initial ADMIN user '{}'. Change the default password in production "

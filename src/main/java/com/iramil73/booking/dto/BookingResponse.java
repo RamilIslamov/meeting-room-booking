@@ -2,6 +2,7 @@ package com.iramil73.booking.dto;
 
 import com.iramil73.booking.entity.Booking;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
@@ -15,6 +16,7 @@ public record BookingResponse(
         LocalDateTime startTime,
         LocalDateTime endTime,
         String status,
+        BigDecimal cost,
         Instant createdAt,
         Instant cancelledAt
 ) {
@@ -29,6 +31,7 @@ public record BookingResponse(
                 booking.getStartTime(),
                 booking.getEndTime(),
                 booking.getStatus().name(),
+                booking.getCost(),
                 booking.getCreatedAt(),
                 booking.getCancelledAt());
     }

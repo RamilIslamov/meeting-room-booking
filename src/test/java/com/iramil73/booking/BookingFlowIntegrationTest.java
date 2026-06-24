@@ -40,7 +40,7 @@ class BookingFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         String roomResponse = mockMvc.perform(post("/api/rooms")
                         .header("Authorization", bearer(adminToken))
                         .contentType(APPLICATION_JSON)
-                        .content("{\"name\":\"IT Room\",\"capacity\":10}"))
+                        .content("{\"name\":\"IT Room\",\"capacity\":10,\"pricePerHour\":0}"))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         long roomId = ((Number) JsonPath.read(roomResponse, "$.id")).longValue();
@@ -84,7 +84,7 @@ class BookingFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/api/rooms")
                         .header("Authorization", bearer(userToken))
                         .contentType(APPLICATION_JSON)
-                        .content("{\"name\":\"Forbidden Room\",\"capacity\":4}"))
+                        .content("{\"name\":\"Forbidden Room\",\"capacity\":4,\"pricePerHour\":0}"))
                 .andExpect(status().isForbidden());
     }
 

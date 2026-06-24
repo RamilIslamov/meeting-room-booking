@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-booking-cost
+      author: ramil
+      comment: Amount charged for a booking (credits); used for refunds and edit adjustments.
+      changes:
+        - addColumn:
+            tableName: bookings
+            columns:
+              - column:
+                  name: cost
+                  type: numeric(10, 2)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false

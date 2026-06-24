@@ -32,7 +32,7 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse create(@Valid @RequestBody BookingRequest request, Authentication authentication) {
-        return bookingService.create(request, authentication.getName());
+        return bookingService.create(request, authentication.getName(), isAdmin(authentication));
     }
 
     @GetMapping("/my")

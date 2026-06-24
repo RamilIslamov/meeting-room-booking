@@ -31,7 +31,8 @@ import java.util.List;
         AdminProperties.class,
         CorsProperties.class,
         RateLimitProperties.class,
-        BookingProperties.class
+        BookingProperties.class,
+        UserProperties.class
 })
 @RequiredArgsConstructor
 public class SecurityConfig {
