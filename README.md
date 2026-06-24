@@ -7,6 +7,9 @@ administrators manage rooms. Bookings are validated against business rules,
 including time‑overlap conflict detection. Built as a portfolio project on a
 current Spring Boot 4 / Java 21 stack.
 
+> **Frontend:** the React + TypeScript client lives in a separate repo —
+> [meeting-room-booking-frontend](https://github.com/RamilIslamov/meeting-room-booking-frontend).
+
 > Developed a meeting room booking application backend with Java 21 and Spring Boot.
 > Implemented JWT authentication, role‑based access control, room management, and
 > booking creation/cancellation with time‑conflict validation. Added Liquibase
