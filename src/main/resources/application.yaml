@@ -28,3 +28,7 @@ app:
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-change-me-please-32bytes-minimum-0123456789}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  # Initial admin user seeded on startup (see AdminSeeder). Override in production.
+  admin:
+    email: ${ADMIN_EMAIL:admin@booking.local}
+    password: ${ADMIN_PASSWORD:admin12345}
