@@ -32,3 +32,22 @@ app:
   admin:
     email: ${ADMIN_EMAIL:admin@booking.local}
     password: ${ADMIN_PASSWORD:admin12345}
+
+  # Allowed browser origins for CORS (the future React frontend).
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:3000
+
+  # Fixed-window rate limiting for /api/auth/** (per client IP).
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    capacity: ${RATE_LIMIT_CAPACITY:20}
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+
+  # Booking business rules.
+  booking:
+    opening-time: "08:00"
+    closing-time: "20:00"
+    max-duration-hours: 4
+    max-advance-days: 30

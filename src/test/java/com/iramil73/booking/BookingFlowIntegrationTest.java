@@ -1,6 +1,7 @@
 package com.iramil73.booking;
 
 import com.jayway.jsonpath.JsonPath;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -30,6 +31,11 @@ class BookingFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         String userToken = register("flow.user@example.com", "password123", "Flow User");
         String adminToken = login("admin@booking.local", "admin12345");
 
+        // A near-future slot inside working hours and the advance horizon.
+        String day = LocalDate.now().plusDays(2).toString();
+        String start = day + "T10:00:00";
+        String end = day + "T11:00:00";
+
         // Admin creates a room.
         String roomResponse = mockMvc.perform(post("/api/rooms")
                         .header("Authorization", bearer(adminToken))
@@ -43,7 +49,7 @@ class BookingFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         String bookingResponse = mockMvc.perform(post("/api/bookings")
                         .header("Authorization", bearer(userToken))
                         .contentType(APPLICATION_JSON)
-                        .content(bookingJson(roomId, "Team sync", "2030-01-01T10:00:00", "2030-01-01T11:00:00")))
+                        .content(bookingJson(roomId, "Team sync", start, end)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andReturn().getResponse().getContentAsString();
@@ -53,7 +59,7 @@ class BookingFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/api/bookings")
                         .header("Authorization", bearer(userToken))
                         .contentType(APPLICATION_JSON)
-                        .content(bookingJson(roomId, "Clash", "2030-01-01T10:30:00", "2030-01-01T11:30:00")))
+                        .content(bookingJson(roomId, "Clash", day + "T10:30:00", day + "T11:30:00")))
                 .andExpect(status().isConflict());
 
         // The user sees their one booking.
@@ -68,7 +74,7 @@ class BookingFlowIntegrationTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/api/bookings")
                         .header("Authorization", bearer(userToken))
                         .contentType(APPLICATION_JSON)
-                        .content(bookingJson(roomId, "Rebooked", "2030-01-01T10:00:00", "2030-01-01T11:00:00")))
+                        .content(bookingJson(roomId, "Rebooked", start, end)))
                 .andExpect(status().isCreated());
     }
 

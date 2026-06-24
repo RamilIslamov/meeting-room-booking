@@ -1,5 +1,6 @@
 package com.iramil73.booking.service;
 
+import com.iramil73.booking.config.BookingProperties;
 import com.iramil73.booking.dto.BookingRequest;
 import com.iramil73.booking.dto.BookingResponse;
 import com.iramil73.booking.entity.Booking;
@@ -18,6 +19,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,15 +32,11 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
+    private final BookingProperties bookingProperties;
 
     @Transactional
     public BookingResponse create(BookingRequest request, String userEmail) {
-        if (!request.startTime().isBefore(request.endTime())) {
-            throw new BadRequestException("startTime must be before endTime");
-        }
-        if (request.startTime().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Cannot book a slot in the past");
-        }
+        validateTimes(request);
 
         Room room = roomRepository.findById(request.roomId())
                 .orElseThrow(() -> new NotFoundException("Room not found: " + request.roomId()));
@@ -107,6 +105,34 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setCancelledAt(Instant.now());
+    }
+
+    private void validateTimes(BookingRequest request) {
+        LocalDateTime start = request.startTime();
+        LocalDateTime end = request.endTime();
+
+        if (!start.isBefore(end)) {
+            throw new BadRequestException("startTime must be before endTime");
+        }
+        if (start.isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Cannot book a slot in the past");
+        }
+        if (start.isAfter(LocalDateTime.now().plusDays(bookingProperties.maxAdvanceDays()))) {
+            throw new BadRequestException(
+                    "Cannot book more than " + bookingProperties.maxAdvanceDays() + " days in advance");
+        }
+        if (!start.toLocalDate().equals(end.toLocalDate())) {
+            throw new BadRequestException("Booking must start and end on the same day");
+        }
+        if (Duration.between(start, end).toMinutes() > bookingProperties.maxDurationHours() * 60) {
+            throw new BadRequestException(
+                    "Booking cannot exceed " + bookingProperties.maxDurationHours() + " hours");
+        }
+        if (start.toLocalTime().isBefore(bookingProperties.openingTime())
+                || end.toLocalTime().isAfter(bookingProperties.closingTime())) {
+            throw new BadRequestException("Booking must be within working hours "
+                    + bookingProperties.openingTime() + "–" + bookingProperties.closingTime());
+        }
     }
 
     private User currentUser(String email) {

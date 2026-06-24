@@ -30,10 +30,14 @@ current Spring Boot 4 / Java 21 stack.
 - Rooms: list/get for any authenticated user; create/update/soft‑delete for admins
 - Bookings:
   - create with validation — `start < end`, not in the past, room exists & active,
-    and **no overlap with an existing active booking** in the same room (`409`)
+    within working hours, under the max duration, inside the advance horizon, and
+    **no overlap with an existing active booking** in the same room (`409`)
+  - overlap is also enforced by a PostgreSQL exclusion constraint, closing the
+    concurrent check‑then‑insert race
   - list my bookings, list a room's bookings for a given date
   - cancel your own booking (admins can cancel any); cancelling frees the slot
-- Consistent JSON error responses (`400/401/403/404/409`)
+- Consistent JSON error responses (`400/401/403/404/409/429`)
+- Rate limiting on `/api/auth/**` and configurable CORS for the browser frontend
 - OpenAPI 3 spec + Swagger UI with a JWT "Authorize" button
 
 ## Running locally
@@ -83,6 +87,14 @@ environment variables:
 | `JWT_EXPIRATION_MINUTES`     | `60`                                     |
 | `ADMIN_EMAIL`                | `admin@booking.local`                    |
 | `ADMIN_PASSWORD`             | `admin12345`                             |
+| `RATE_LIMIT_ENABLED`         | `true`                                   |
+| `RATE_LIMIT_CAPACITY`        | `20` (requests per window, per client)   |
+| `RATE_LIMIT_WINDOW_SECONDS`  | `60`                                     |
+
+CORS origins (`app.cors.allowed-origins`) and booking rules
+(`app.booking.opening-time` / `closing-time` / `max-duration-hours` /
+`max-advance-days`, defaulting to 08:00–20:00, 4h, 30 days) are set in
+`application.yaml`.
 
 ## API examples
 
