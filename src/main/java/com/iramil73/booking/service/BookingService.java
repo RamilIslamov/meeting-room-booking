@@ -87,6 +87,19 @@ public class BookingService {
                 .toList();
     }
 
+    /** Admin dashboard: every booking starting within the inclusive day range [from, to]. */
+    @Transactional(readOnly = true)
+    public List<BookingResponse> listInRange(LocalDate from, LocalDate to) {
+        if (to.isBefore(from)) {
+            throw new BadRequestException("'to' date must not be before 'from' date");
+        }
+        LocalDateTime start = from.atStartOfDay();
+        LocalDateTime end = to.plusDays(1).atStartOfDay();
+        return bookingRepository.findAllInRange(start, end).stream()
+                .map(BookingResponse::from)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<BookingResponse> listByRoomAndDate(Long roomId, LocalDate date) {
         if (!roomRepository.existsById(roomId)) {

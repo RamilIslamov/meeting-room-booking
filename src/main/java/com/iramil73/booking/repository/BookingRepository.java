@@ -38,4 +38,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                                    @Param("status") BookingStatus status,
                                    @Param("dayStart") LocalDateTime dayStart,
                                    @Param("dayEnd") LocalDateTime dayEnd);
+
+    /** All bookings (any status, any room/user) starting within [from, to) — for the admin dashboard. */
+    @Query("""
+            select b from Booking b
+              join fetch b.room
+              join fetch b.user
+            where b.startTime >= :from
+              and b.startTime < :to
+            order by b.startTime
+            """)
+    List<Booking> findAllInRange(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }
