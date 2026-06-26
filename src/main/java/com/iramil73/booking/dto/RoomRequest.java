@@ -13,6 +13,7 @@ public record RoomRequest(
         @NotBlank @Size(max = 255) String name,
         @NotNull @Positive Integer capacity,
         @Size(max = 255) String location,
+        Integer floor,
         @Size(max = 1000) String description,
         @NotNull @PositiveOrZero @Digits(integer = 8, fraction = 2) BigDecimal pricePerHour
 ) {

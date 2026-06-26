@@ -49,4 +49,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             order by b.startTime
             """)
     List<Booking> findAllInRange(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /** Every booking, newest first — for the admin bookings list. */
+    @Query("""
+            select b from Booking b
+              join fetch b.room
+              join fetch b.user
+            order by b.startTime desc
+            """)
+    List<Booking> findAllWithRefs();
 }

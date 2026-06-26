@@ -37,6 +37,7 @@ public class RoomService {
                 .name(request.name())
                 .capacity(request.capacity())
                 .location(request.location())
+                .floor(request.floor())
                 .description(request.description())
                 .pricePerHour(request.pricePerHour())
                 .active(true)
@@ -53,6 +54,7 @@ public class RoomService {
         room.setName(request.name());
         room.setCapacity(request.capacity());
         room.setLocation(request.location());
+        room.setFloor(request.floor());
         room.setDescription(request.description());
         room.setPricePerHour(request.pricePerHour());
         return RoomResponse.from(room); // flushed on transaction commit (dirty checking)

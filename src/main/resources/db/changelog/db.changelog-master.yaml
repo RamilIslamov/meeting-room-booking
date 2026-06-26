@@ -22,3 +22,6 @@ databaseChangeLog:
   - include:
       file: changes/007-add-booking-cost.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/008-add-room-floor.yaml
+      relativeToChangelogFile: true

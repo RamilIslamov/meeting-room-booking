@@ -50,13 +50,16 @@ public class BookingController {
         return bookingService.listByRoomAndDate(roomId, date);
     }
 
-    /** Admin dashboard feed: all bookings starting within the inclusive [from, to] day range. */
+    /**
+     * Admin feed. With from+to: bookings within that inclusive day range (dashboard).
+     * Without params: every booking, newest first (bookings list).
+     */
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<BookingResponse> adminInRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return bookingService.listInRange(from, to);
+    public List<BookingResponse> adminFeed(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return bookingService.listForAdmin(from, to);
     }
 
     @PutMapping("/{id}")

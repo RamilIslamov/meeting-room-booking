@@ -36,6 +36,9 @@ public class Room {
     @Column
     private String location;
 
+    @Column
+    private Integer floor;
+
     @Column(length = 1000)
     private String description;
 

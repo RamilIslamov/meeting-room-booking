@@ -87,9 +87,21 @@ public class BookingService {
                 .toList();
     }
 
-    /** Admin dashboard: every booking starting within the inclusive day range [from, to]. */
+    /**
+     * Admin feed. With both dates given, returns every booking starting within the
+     * inclusive day range [from, to] (dashboard). With neither given, returns all
+     * bookings newest-first (bookings list). Supplying only one date is rejected.
+     */
     @Transactional(readOnly = true)
-    public List<BookingResponse> listInRange(LocalDate from, LocalDate to) {
+    public List<BookingResponse> listForAdmin(LocalDate from, LocalDate to) {
+        if (from == null && to == null) {
+            return bookingRepository.findAllWithRefs().stream()
+                    .map(BookingResponse::from)
+                    .toList();
+        }
+        if (from == null || to == null) {
+            throw new BadRequestException("Provide both 'from' and 'to', or neither");
+        }
         if (to.isBefore(from)) {
             throw new BadRequestException("'to' date must not be before 'from' date");
         }

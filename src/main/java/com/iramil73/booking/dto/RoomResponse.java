@@ -9,6 +9,7 @@ public record RoomResponse(
         String name,
         Integer capacity,
         String location,
+        Integer floor,
         String description,
         BigDecimal pricePerHour,
         boolean active
@@ -19,6 +20,7 @@ public record RoomResponse(
                 room.getName(),
                 room.getCapacity(),
                 room.getLocation(),
+                room.getFloor(),
                 room.getDescription(),
                 room.getPricePerHour(),
                 room.isActive());

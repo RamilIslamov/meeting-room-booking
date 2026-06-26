@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-room-floor
+      author: ramil
+      comment: Floor number for a room. Backfilled from a "Floor N" location text where present.
+      changes:
+        - addColumn:
+            tableName: rooms
+            columns:
+              - column:
+                  name: floor
+                  type: int
+        - sql:
+            comment: Backfill floor from any "Floor N" pattern in the location text.
+            sql: >-
+              update rooms
+                 set floor = cast(substring(location from 'Floor[[:space:]]+([0-9]+)') as integer)
+               where location ~ 'Floor[[:space:]]+[0-9]+';
